@@ -1,0 +1,294 @@
+<!-- 
+Interval Timer
+http://nasha.co.in
+Copyright 2013 Dinesh Jamwal - Licensed under: GNU Public License 2.1 or later 
+-->
+<html>
+
+<head>
+    <title>Timer</title>
+    <meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7; IE=EmulateIE9">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta http-equiv="content-language" content="en-us" />
+    <meta http-equiv="author" content="Dinesh Jamwal" />
+    <meta http-equiv="contact" content="jnx+itimer@nasha.co.in" />
+    <meta name="copyright" content="Copyright (c)2013 Dinesh Pratap Singh Jamwal. All Rights Reserved." />
+    <style>
+        body {
+            font-family: helvetica;
+            color: orange;
+            font-size: 24px;
+            text-align: center;
+        }
+        
+        #go,
+        #pause,
+        #config,
+        #save {
+            margin-left: auto;
+            margin-right: auto;
+            background: orange;
+            color: black;
+            width: 90px;
+            cursor: hand;
+            cursor: pointer;
+        }
+        
+        #countdowns {
+            display: none;
+        }
+        
+        #config-view {
+            margin: 0 auto;
+            width: 200px;
+            font-size: 20px;
+        }
+        
+        label {
+            float: left;
+            display: block;
+            width: 40px;
+        }
+        
+        input {
+            border: 1px solid #dadada;
+            width: 80px;
+            text-align: center;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #9ecaed;
+            box-shadow: 0 0 10px #9ecaed;
+        }
+
+    </style>
+    <script src="https://code.jquery.com/jquery-latest.js"></script>
+
+    <script type="text/javascript">
+        var PUSH_TIME = 8;
+        var REST_TIME = 12;
+        var TOTAL_TIME = 1200;
+
+        //Default setup
+        var total = TOTAL_TIME; //20*60
+        var push = PUSH_TIME;
+        var rest = REST_TIME;
+
+        var runTimer;
+        var isPush = false;
+
+        function storageLoad() {
+            try {
+                TOTAL_TIME = localStorage.getItem("total") || TOTAL_TIME;
+                PUSH_TIME = localStorage.getItem("push") || PUSH_TIME;
+                REST_TIME = localStorage.getItem("rest") || REST_TIME;
+                return true;
+            } catch (exception) {
+                return false;
+            }
+        };
+
+        function storageSave() {
+            try {
+                localStorage.setItem("total", TOTAL_TIME);
+                localStorage.setItem("push", PUSH_TIME);
+                localStorage.setItem("rest", REST_TIME);
+                return true;
+            } catch (exception) {
+                return false;
+            }
+        };
+
+        $(document).ready(function() {
+            var tmr = {
+
+                setDefaults: function() {
+                    storageLoad();
+                    push = PUSH_TIME;
+                    rest = REST_TIME;
+                    total = TOTAL_TIME;
+                    $("#pushText").val(push);
+                    $("#restText").val(rest);
+                    $("#totalText").val(total / 60);
+                    tmr.apply()
+                },
+
+                apply: function() {
+                    //should be the only instant of pushing to UI
+
+                    var m = Math.floor(total / 60);
+                    var s = Math.round(total % 60);
+                    s = (s > 9) ? s : "0" + s;
+                    $("#total").html(m + ":" + s);
+
+                    $("#push").html(push);
+                    $("#rest").html(rest);
+                },
+
+                init: function() {
+                    tmr.setDefaults();
+                    var start = $("#go").click(function() {
+                        $("#go").hide();
+                        $("#pause").show();
+                        $("#config").hide(); //hide for session
+
+                        //Show counters
+                        $("#countdowns").show();
+
+                        //Always starts/resumes with Push
+                        tmr.setPush(true);
+                        runTimer = tmr.startTimer();
+
+                    });
+
+                    var pause = $("#pause").click(function() {
+                        $("#pause").hide();
+                        $("#go").show();
+
+                        tmr.pauseTimer();
+                        $("body").css("background-color", "white");
+                    });
+
+                    var config = $("#config").click(function() {
+                        $("#main-view").hide();
+                        $("#config-view").show();
+
+                    });
+
+                    var saveConfig = $("#save").click(function() {
+                        var p = $("#pushText").val();
+                        var r = $("#restText").val();
+                        var t = $("#totalText").val();
+
+                        //Parse inputs as text
+                        if (IsNumeric(p) && IsNumeric(r) && IsNumeric(t)) {
+                            PUSH_TIME = p;
+                            REST_TIME = r;
+                            TOTAL_TIME = t * 60;
+
+                            storageSave();
+                            tmr.setDefaults();
+                        };
+
+                        $("#main-view").show();
+                        $("#config-view").hide();
+
+                    });
+
+                },
+
+                startTimer: function() {
+
+                    var interval = setInterval(function() {
+                        total--;
+                        if (isPush) {
+                            push--;
+                            if (push == 0) {
+                                tmr.setPush(false);
+                                push = PUSH_TIME;
+                            }
+                        } else {
+                            rest--;
+                        }
+
+                        if (push == PUSH_TIME && rest == 0)
+                            tmr.setPush(true);
+
+                        if (rest == 0) rest = REST_TIME;
+
+                        tmr.apply();
+
+                        if (total == 0) {
+                            tmr.reset();
+                            clearInterval(interval);
+                        }
+
+                    }, 1000);
+
+                    return interval;
+
+                },
+
+                reset: function() {
+                    $("body").css("background-color", "white");
+                    $("#pause").hide();
+                    $("#go").show();
+                    $("#countdowns").hide();
+
+                    isPush = false;
+
+                    tmr.setDefaults();
+                },
+
+                setPush: function(isOn) {
+                    isPush = isOn;
+                    if (isOn) {
+                        $("body").css("background-color", "red");
+                        $("#pushC").show();
+                        $("#restC").hide();
+                    } else {
+                        $("body").css("background-color", "green");
+                        $("#pushC").hide();
+                        $("#restC").show();
+                    }
+                },
+
+                pauseTimer: function() {
+                    if (runTimer)
+                        clearInterval(runTimer);
+                }
+
+            };
+            tmr.init();
+        });
+
+        function IsNumeric(input) {
+            return (input - 0) == input && (input + '').replace(/^\s+|\s+$/g, "").length > 0;
+        }
+
+    </script>
+
+</head>
+
+<body>
+    <div style="padding: 50px;">
+
+        <div id="main-view">
+            <div id="go">Go</div>
+            <div id="pause" style="display:none">Pause</div>
+            <div id="countdowns">
+                <div id="pushC">Push : <span id="push"></span></div>
+                <div id="restC">Rest : <span id="rest"></span></div>
+            </div>
+            <br />
+            <div style="font-size:16px">Total Time Remaining:
+                <div id="total" style="font-size:24px"></div>
+            </div>
+            <br/>
+            <br/>
+            <div id="config">Setup</div>
+        </div>
+
+        <!--  Config Start -->
+        <div id="config-view" style="display:none;">
+            <label for="pushText">Push</label>
+            <input type="number" id="pushText" /> sec
+            <br />
+            <label for="restText">Rest</label>
+            <input type="number" id="restText" /> sec
+            <br />
+            <label for="totalText">Total</label>
+            <input type="number" id="totalText" /> min
+            <br />
+            <br />
+
+            <div id="save">Save</div>
+        </div>
+        <!--  Config End -->
+
+    </div>
+</body>
+
+</html>
